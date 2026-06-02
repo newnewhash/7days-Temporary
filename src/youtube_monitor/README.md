@@ -12,7 +12,7 @@ Chinese Markdown digest when a new public video appears.
 5. Open `Actions` -> `YouTube Monitor` -> `Run workflow`.
 
 The first run creates a baseline only. It does not summarize older videos.
-Later runs add new Markdown files under `digests/YYYY-MM-DD/`.
+Later runs add new Markdown files under `../../outputs/youtube/digests/YYYY-MM-DD/`.
 
 ## Notes
 

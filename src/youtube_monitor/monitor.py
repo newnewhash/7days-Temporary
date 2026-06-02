@@ -11,9 +11,10 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent
+REPO_ROOT = ROOT.parent.parent
 CHANNELS_PATH = ROOT / "channels.json"
 STATE_PATH = ROOT / "state.json"
-DIGESTS_PATH = ROOT / "digests"
+DIGESTS_PATH = REPO_ROOT / "outputs" / "youtube" / "digests"
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
