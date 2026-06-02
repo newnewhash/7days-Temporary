@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -53,6 +54,37 @@ def fetch_feed(channel_id):
             }
         )
     return url, videos
+
+
+def fetch_channel_feed(handle, channel_state):
+    channel_id = channel_state.get("channel_id") or resolve_channel_id(handle)
+    try:
+        rss_url, videos = fetch_feed(channel_id)
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+        refreshed_channel_id = resolve_channel_id(handle)
+        if refreshed_channel_id == channel_id:
+            print(
+                f"WARNING: Skipping unavailable YouTube feed: {handle} ({channel_id})",
+                file=sys.stderr,
+            )
+            return None
+        channel_id = refreshed_channel_id
+        try:
+            rss_url, videos = fetch_feed(channel_id)
+        except urllib.error.HTTPError as retry_error:
+            if retry_error.code != 404:
+                raise
+            print(
+                f"WARNING: Skipping unavailable YouTube feed: {handle} ({channel_id})",
+                file=sys.stderr,
+            )
+            return None
+
+    channel_state["channel_id"] = channel_id
+    channel_state["rss_url"] = rss_url
+    return rss_url, videos
 
 
 def summarize(video, channel_name):
@@ -136,10 +168,10 @@ def main():
     for channel in channels:
         handle = channel["handle"]
         channel_state = state["channels"].setdefault(handle, {"seen_video_ids": []})
-        channel_id = channel_state.get("channel_id") or resolve_channel_id(handle)
-        channel_state["channel_id"] = channel_id
-        rss_url, videos = fetch_feed(channel_id)
-        channel_state["rss_url"] = rss_url
+        feed = fetch_channel_feed(handle, channel_state)
+        if feed is None:
+            continue
+        rss_url, videos = feed
 
         seen = set(channel_state["seen_video_ids"])
         if baseline_only:
