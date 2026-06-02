@@ -17,12 +17,14 @@ DIGESTS_PATH = ROOT / "digests"
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_TIMEOUT = int(os.environ.get("GEMINI_TIMEOUT", "180"))
+GEMINI_RETRIES = int(os.environ.get("GEMINI_RETRIES", "2"))
 ATOM = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
 
 
-def request_json(url, *, method="GET", headers=None, body=None):
+def request_json(url, *, method="GET", headers=None, body=None, timeout=60):
     request = urllib.request.Request(url, data=body, headers=headers or {}, method=method)
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
 
@@ -126,11 +128,26 @@ def summarize(video, channel_name):
         method="POST",
         headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY},
         body=body,
+        timeout=GEMINI_TIMEOUT,
     )
     try:
         return data["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError) as error:
         raise RuntimeError(f"Gemini returned no summary: {data}") from error
+
+
+def summarize_with_retries(video, channel_name):
+    for attempt in range(1, GEMINI_RETRIES + 1):
+        try:
+            return summarize(video, channel_name)
+        except TimeoutError:
+            print(
+                f"WARNING: Gemini summary timed out for {video['url']} "
+                f"(attempt {attempt}/{GEMINI_RETRIES})",
+                file=sys.stderr,
+            )
+    print(f"WARNING: Skipping video after Gemini timeouts: {video['url']}", file=sys.stderr)
+    return None
 
 
 def write_digest(channel_name, rss_url, video, summary):
@@ -181,7 +198,10 @@ def main():
                 if video["video_id"] in seen:
                     continue
                 print(f'Summarizing {channel["name"]}: {video["title"]}')
-                write_digest(channel["name"], rss_url, video, summarize(video, channel["name"]))
+                summary = summarize_with_retries(video, channel["name"])
+                if summary is None:
+                    continue
+                write_digest(channel["name"], rss_url, video, summary)
                 seen.add(video["video_id"])
 
         channel_state["seen_video_ids"] = sorted(seen)
