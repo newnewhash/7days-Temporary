@@ -174,12 +174,20 @@ def save_state(state):
     )
 
 
+def load_state():
+    if not STATE_PATH.exists():
+        return {"channels": {}, "initialized": False}
+    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    state.setdefault("channels", {})
+    return state
+
+
 def main():
     if not YOUTUBE_API_KEY or not GEMINI_API_KEY:
         raise RuntimeError("YOUTUBE_API_KEY and GEMINI_API_KEY are required")
 
     channels = json.loads(CHANNELS_PATH.read_text(encoding="utf-8"))
-    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    state = load_state()
     original_state = json.dumps(state, ensure_ascii=False, sort_keys=True)
     baseline_only = not state.get("initialized", False)
 
