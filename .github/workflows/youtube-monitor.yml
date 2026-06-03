@@ -21,13 +21,13 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-3.5-flash
-        run: python youtube-monitor/monitor.py
+        run: python src/youtube_monitor/monitor.py
       - name: Commit generated digests
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add youtube-monitor/state.json
-          if [ -d youtube-monitor/digests ]; then git add youtube-monitor/digests; fi
+          git add src/youtube_monitor/state.json
+          if [ -d outputs/youtube/digests ]; then git add outputs/youtube/digests; fi
           git diff --cached --quiet && exit 0
           git commit -m "chore: update YouTube digests"
           git push
